@@ -10,7 +10,13 @@
 </script>
 
 <script type="text/html" data-help-name="caching-link-get">
-    <p>Outputs the latest cached message for the configured topic whenever it receives any input.</p>
+    <p>
+        On input, reads the retained message for the same exact topic and merges it onto the inbound
+        message. Cached fields override inbound fields while preserving inbound <code>_msgid</code>.
+    </p>
+    <p>
+        Sends nothing when no retained message exists. Topic is required at runtime.
+    </p>
 </script>
 
 <script type="text/javascript">
@@ -19,7 +25,12 @@
         color: '#a6d6a6',
         defaults: {
             name: { value: '' },
-            topic: { value: '' }
+            topic: {
+                value: '',
+                validate: function (value) {
+                    return typeof value === 'string' && value.trim().length > 0;
+                }
+            }
         },
         inputs: 1,
         outputs: 1,

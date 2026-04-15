@@ -10,7 +10,13 @@
 </script>
 
 <script type="text/html" data-help-name="caching-link-in">
-    <p>Receives messages from caching-link-out nodes that use the same topic and emits them to the flow.</p>
+    <p>
+        Receives messages forwarded by <code>caching-link-out</code> nodes using the same exact topic,
+        then emits them to the flow.
+    </p>
+    <p>
+        Topic should be configured. A missing topic is shown as a node misconfiguration in status.
+    </p>
 </script>
 
 <script type="text/javascript">
@@ -19,7 +25,12 @@
         color: '#a6d6a6',
         defaults: {
             name: { value: '' },
-            topic: { value: '' }
+            topic: {
+                value: '',
+                validate: function (value) {
+                    return typeof value === 'string' && value.trim().length > 0;
+                }
+            }
         },
         inputs: 0,
         outputs: 1,

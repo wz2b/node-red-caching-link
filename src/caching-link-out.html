@@ -10,7 +10,13 @@
 </script>
 
 <script type="text/html" data-help-name="caching-link-out">
-    <p>Stores the latest message for a topic and forwards it to matching caching-link-in nodes.</p>
+    <p>
+        Sends incoming messages to all <code>caching-link-in</code> nodes with the same exact topic,
+        and retains the latest message for that topic.
+    </p>
+    <p>
+        Topic is required at runtime. When topic is missing, the node reports an invalid topic error.
+    </p>
 </script>
 
 <script type="text/javascript">
@@ -19,7 +25,12 @@
         color: '#a6d6a6',
         defaults: {
             name: { value: '' },
-            topic: { value: '' }
+            topic: {
+                value: '',
+                validate: function (value) {
+                    return typeof value === 'string' && value.trim().length > 0;
+                }
+            }
         },
         inputs: 1,
         outputs: 0,

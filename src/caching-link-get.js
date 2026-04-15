@@ -1,6 +1,8 @@
 "use strict";
 
 const {
+    assertValidTopic,
+    displayTopic,
     getCachedMessage,
     hasCachedMessage,
     normalizeTopic,
@@ -24,10 +26,26 @@ module.exports = function (RED) {
         registerGetNode(node.topic, node);
 
         node.on("input", (msg, send, done) => {
-            if (hasCachedMessage(node.topic)) {
-                send(cloneMessage(getCachedMessage(node.topic)));
-            } else {
-                node.debug(`No cached message for topic "${node.topic}"`);
+            try {
+                assertValidTopic(node.topic, "caching-link-get");
+
+                if (hasCachedMessage(node.topic)) {
+                    const inboundClone = cloneMessage(msg);
+                    const cachedClone = cloneMessage(getCachedMessage(node.topic));
+                    const mergedMessage = Object.assign({}, inboundClone, cachedClone);
+
+                    if (Object.prototype.hasOwnProperty.call(inboundClone, "_msgid")) {
+                        mergedMessage._msgid = inboundClone._msgid;
+                    }
+
+                    send(mergedMessage);
+                    node.status(statusForTopic(node.topic));
+                } else {
+                    node.debug(`No cached message for topic "${displayTopic(node.topic)}"`);
+                    node.status(statusForTopic(node.topic));
+                }
+            } catch (err) {
+                node.error(err, msg);
                 node.status(statusForTopic(node.topic));
             }
 

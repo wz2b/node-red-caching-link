@@ -1,26 +1,16 @@
 "use strict";
 
 const {
+    assertValidTopic,
     getRegisteredInNodes,
     normalizeTopic,
     registerOutNode,
+    receiverStatusForTopic,
     setCachedMessage,
     unregisterOutNode
 } = require("./message-cache");
 
 module.exports = function (RED) {
-    function formatReceiverStatus(receiverCount) {
-        if (receiverCount === 0) {
-            return { fill: "yellow", shape: "ring", text: "no receivers" };
-        }
-
-        return {
-            fill: "green",
-            shape: "dot",
-            text: `${receiverCount} receiver${receiverCount === 1 ? "" : "s"}`
-        };
-    }
-
     function CachingLinkOutNode(config) {
         RED.nodes.createNode(this, config);
 
@@ -32,13 +22,15 @@ module.exports = function (RED) {
         node.name = config.name;
         node.topic = normalizeTopic(config.topic);
         node.updateReceiverStatus = (receiverCount) => {
-            node.status(formatReceiverStatus(receiverCount));
+            node.status(receiverStatusForTopic(node.topic, receiverCount));
         };
 
         registerOutNode(node.topic, node);
 
         node.on("input", (msg, send, done) => {
             try {
+                assertValidTopic(node.topic, "caching-link-out");
+
                 const targets = getRegisteredInNodes(node.topic);
 
                 node.updateReceiverStatus(targets.length);
@@ -54,6 +46,8 @@ module.exports = function (RED) {
                 } else {
                     node.error(err, msg);
                 }
+
+                node.status(receiverStatusForTopic(node.topic, 0));
             }
         });
 

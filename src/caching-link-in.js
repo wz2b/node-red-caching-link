@@ -1,6 +1,11 @@
 "use strict";
 
-const { normalizeTopic, registerInNode, unregisterInNode } = require("./message-cache");
+const {
+    inNodeStatusForTopic,
+    normalizeTopic,
+    registerInNode,
+    unregisterInNode
+} = require("./message-cache");
 
 module.exports = function (RED) {
     function CachingLinkInNode(config) {
@@ -12,7 +17,7 @@ module.exports = function (RED) {
         node.topic = normalizeTopic(config.topic);
 
         registerInNode(node.topic, node);
-        node.status({ fill: "blue", shape: "dot", text: node.topic || "no topic" });
+        node.status(inNodeStatusForTopic(node.topic));
 
         node.on("input", (msg, send, done) => {
             send(msg);

@@ -1,20 +1,23 @@
 "use strict";
 
 const assert = require("assert");
+const { isDeepStrictEqual } = require("util");
 const helper = require("./helper");
 
 const cachingLinkIn = require("../src/caching-link-in");
-const { clearMessageCache } = require("../src/message-cache");
-
 
 describe("caching-link-in", function () {
+    function hasStatusCall(node, expectedStatus) {
+        return node.status.args.some((call) => isDeepStrictEqual(call[0], expectedStatus));
+    }
+
     beforeEach(function (done) {
-        clearMessageCache();
+        helper.resetRuntimeState();
         helper.startServer(done);
     });
 
     afterEach(function (done) {
-        clearMessageCache();
+        helper.resetRuntimeState();
         helper.unload()
             .then(() => helper.stopServer(done))
             .catch(done);
@@ -46,6 +49,32 @@ describe("caching-link-in", function () {
             });
 
             inputNode.receive(message);
+        });
+    });
+
+    it("shows a missing-topic status when topic is empty", function (done) {
+        const flow = [
+            { id: "in1", type: "caching-link-in", topic: "", wires: [] }
+        ];
+
+        helper.load(cachingLinkIn, flow, function (err) {
+            if (err) {
+                done(err);
+                return;
+            }
+
+            try {
+                const inputNode = helper.getNode("in1");
+
+                assert.deepStrictEqual(hasStatusCall(inputNode, {
+                    fill: "red",
+                    shape: "ring",
+                    text: "missing topic"
+                }), true);
+                done();
+            } catch (testErr) {
+                done(testErr);
+            }
         });
     });
 });

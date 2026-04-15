@@ -3,9 +3,11 @@
 const assert = require("assert");
 
 const {
-    clearMessageCache,
+    clearRetainedMessages,
+    resetRuntimeStateForTests,
     getRegisteredInNodeCount,
     getRegisteredInNodes,
+    isTopicConfigured,
     registerInNode,
     registerOutNode,
     unregisterInNode,
@@ -14,11 +16,11 @@ const {
 
 describe("message-cache registry", function () {
     beforeEach(function () {
-        clearMessageCache();
+        resetRuntimeStateForTests();
     });
 
     afterEach(function () {
-        clearMessageCache();
+        resetRuntimeStateForTests();
     });
 
     it("tracks caching-link-in registrations by exact topic", function () {
@@ -54,6 +56,30 @@ describe("message-cache registry", function () {
         unregisterOutNode("sync", outNode);
 
         assert.deepStrictEqual(updates, [0, 1, 2, 1, 0]);
+    });
+
+    it("does not register receivers for an empty topic", function () {
+        const emptyTopicNode = { id: "in-empty", receive: () => {} };
+
+        assert.strictEqual(isTopicConfigured(""), false);
+        registerInNode("", emptyTopicNode);
+        assert.strictEqual(getRegisteredInNodeCount(""), 0);
+    });
+
+    it("clears retained cache without resetting registries", function () {
+        const updates = [];
+        const outNode = {
+            updateReceiverStatus: (count) => updates.push(count)
+        };
+        const receiver = { id: "in-1", receive: () => {} };
+
+        registerOutNode("alpha", outNode);
+        registerInNode("alpha", receiver);
+
+        clearRetainedMessages();
+
+        assert.strictEqual(getRegisteredInNodeCount("alpha"), 1);
+        assert.deepStrictEqual(updates.includes(1), true);
     });
 });
 
