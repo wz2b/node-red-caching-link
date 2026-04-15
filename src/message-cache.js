@@ -103,13 +103,13 @@ function receiverStatusForTopic(topic, receiverCount) {
     }
 
     if (receiverCount === 0) {
-        return { fill: "yellow", shape: "ring", text: "no receivers" };
+        return { fill: "grey", shape: "ring", text: "0 subscribers" };
     }
 
     return {
         fill: "green",
         shape: "dot",
-        text: `${receiverCount} receiver${receiverCount === 1 ? "" : "s"}`
+        text: `${receiverCount} subscriber${receiverCount === 1 ? "" : "s"}`
     };
 }
 

@@ -126,7 +126,7 @@ describe("caching-link-out", function () {
         });
     });
 
-    it("shows no receivers status when nobody is listening", function (done) {
+    it("shows neutral zero-subscriber status when nobody is listening", function (done) {
         const flow = [
             { id: "out1", type: "caching-link-out", topic: "alpha", wires: [] }
         ];
@@ -143,9 +143,9 @@ describe("caching-link-out", function () {
                 await waitForAsyncWork();
                 assert.deepStrictEqual(outNode.status.callCount > 0, true);
                 assert.deepStrictEqual(hasStatusCall(outNode, {
-                    fill: "yellow",
+                    fill: "grey",
                     shape: "ring",
-                    text: "no receivers"
+                    text: "0 subscribers"
                 }), true);
                 done();
             } catch (testErr) {
@@ -173,7 +173,7 @@ describe("caching-link-out", function () {
                 assert.deepStrictEqual(hasStatusCall(outNode, {
                     fill: "green",
                     shape: "dot",
-                    text: "1 receiver"
+                    text: "1 subscriber"
                 }), true);
 
                 await helper.unload();
@@ -191,9 +191,9 @@ describe("caching-link-out", function () {
                 const outNode2 = helper.getNode("out2");
                 await waitForAsyncWork();
                 assert.deepStrictEqual(hasStatusCall(outNode2, {
-                    fill: "yellow",
+                    fill: "grey",
                     shape: "ring",
-                    text: "no receivers"
+                    text: "0 subscribers"
                 }), true);
                 done();
             } catch (testErr) {

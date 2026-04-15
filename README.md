@@ -4,7 +4,7 @@
 
 ## Why this exists
 
-Node-RED context (`flow.get()` / `flow.set()`) is useful, but context reads and writes are visually invisible in a flow diagram. That can hide coupling and make architecture harder to reason about. This package provides named exact-topic retained channels you can see directly on the canvas.
+This package has two practical goals. First, it provides a visible replacement for hidden context usage (`flow.get()` / `flow.set()`), so retained channels are explicit on the canvas instead of buried in function code. Second, it makes link-style flow connections more self-documenting: topic labels and live status (including subscriber counts) are visible directly on each node, so you do not need to hover or open configuration just to understand intent.
 
 ## Nodes
 
@@ -15,9 +15,9 @@ Node-RED context (`flow.get()` / `flow.set()`) is useful, but context reads and 
 - Forwards the message to all matching `caching-link-in` nodes
 - Shows live receiver count status:
   - invalid topic -> `invalid topic`
-  - 0 receivers -> `no receivers`
-  - 1 receiver -> `1 receiver`
-  - N receivers -> `N receivers`
+  - 0 subscribers -> `0 subscribers` (neutral informational state)
+  - 1 subscriber -> `1 subscriber`
+  - N subscribers -> `N subscribers`
 
 ### `caching-link-in`
 
@@ -54,6 +54,7 @@ Node-RED context (`flow.get()` / `flow.set()`) is useful, but context reads and 
 - `caching-link-get` merge rule: retained fields override inbound fields, inbound `_msgid` is preserved
 - When `maxAgeSeconds > 0`, cached entries are treated as expired once age exceeds that limit
 - When expired and `outputExpired=false`, `caching-link-get` sends nothing
+- A topic may intentionally have zero live `caching-link-in` subscribers when used as a poll-only retained channel via `caching-link-get`
 
 ## Example usage
 
@@ -64,6 +65,10 @@ One flow computes current machine status and sends it to `caching-link-out(topic
 ### 2) Retained state lookup across flows
 
 Flow A writes latest configuration/state to `caching-link-out(topic="plant/target")`. Later, Flow B triggers `caching-link-get(topic="plant/target", maxAgeSeconds=30, outputExpired=false)` before a control action. The get node merges retained state onto the current trigger message only when fresh enough, and adds `cacheAgeMs`, `cacheUpdatedAt`, and `cacheExpired` for downstream decisions.
+
+### 3) Poll-only retained variable pattern
+
+Some topics are intentionally write-and-poll channels: a `caching-link-out` keeps the latest retained value, there are no matching `caching-link-in` nodes, and one or more `caching-link-get` nodes read on demand. In this pattern, zero live subscribers is valid and expected, not an error.
 
 ## Install
 
