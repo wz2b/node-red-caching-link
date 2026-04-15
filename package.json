@@ -1,0 +1,64 @@
+{
+  "name": "@wz2b/node-red-caching-link",
+  "version": "0.1.3",
+  "description": "An alternative of link node with better labeling and last message caching",
+  "keywords": [
+    "node-red",
+    "dynalink",
+    "caching",
+    "link-in",
+    "link-out",
+    "link-get",
+    "link"
+  ],
+  "engines": {
+    "node": ">=18.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wz2b/node-red-caching-link"
+  },
+  "bugs": {
+    "url": "https://github.com/wz2b/node-red-caching-link/issues"
+  },
+  "homepage": "https://github.com/wz2b/node-red-caching-link#readme",
+  "author": "Christopher Piggott",
+  "license": "MIT",
+  "node-red": {
+    "version": ">=3",
+    "nodes": {
+      "caching-link-in": "src/caching-link-in.js",
+      "caching-link-out": "src/caching-link-out.js",
+      "caching-link-get": "src/caching-link-get.js"
+    }
+  },
+  "files": [
+    "src",
+    "examples",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "test": "mocha ./test --recursive --reporter dot --timeout 6000",
+    "lint": "eslint src/**/*.js"
+  },
+  "devDependencies": {
+    "@node-red/editor-api": "^4.1.8",
+    "@node-red/nodes": "^3.1.9",
+    "@node-red/registry": "^4.1.8",
+    "@node-red/runtime": "^4.1.8",
+    "eslint": "^8.0.0",
+    "mocha": "^10.4.0",
+    "node-red": "^4.0.2",
+    "node-red-node-test-helper": "^0.3.4"
+  },
+  "dependenciesMeta": {
+    "node-red@4.1.8": {
+      "unplugged": true
+    },
+    "node-red-node-test-helper@0.3.6": {
+      "unplugged": true
+    }
+  }
+}

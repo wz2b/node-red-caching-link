@@ -1,0 +1,31 @@
+<script type="text/html" data-template-name="caching-link-get">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-topic"><i class="fa fa-bookmark"></i> Topic</label>
+        <input type="text" id="node-input-topic" placeholder="Channel topic">
+    </div>
+</script>
+
+<script type="text/html" data-help-name="caching-link-get">
+    <p>Outputs the latest cached message for the configured topic whenever it receives any input.</p>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('caching-link-get', {
+        category: 'function',
+        color: '#a6d6a6',
+        defaults: {
+            name: { value: '' },
+            topic: { value: '' }
+        },
+        inputs: 1,
+        outputs: 1,
+        label: function () {
+            return this.name || this.topic || 'caching-link-get';
+        }
+    });
+</script>
+
