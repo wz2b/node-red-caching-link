@@ -6,7 +6,7 @@ const helper = require("./helper");
 
 const cachingLinkIn = require("../src/caching-link-in");
 const cachingLinkOut = require("../src/caching-link-out");
-const { getCachedMessage } = require("../src/message-cache");
+const { getCachedEntry } = require("../src/message-cache");
 
 
 function waitForAsyncWork(delay = 25) {
@@ -30,7 +30,7 @@ describe("caching-link-out", function () {
             .catch(done);
     });
 
-    it("stores the last message in cache for its topic", function (done) {
+    it("stores the last message and update timestamp in cache for its topic", function (done) {
         const flow = [
             { id: "out1", type: "caching-link-out", name: "out", topic: "alpha", wires: [] }
         ];
@@ -44,13 +44,24 @@ describe("caching-link-out", function () {
             try {
                 const outNode = helper.getNode("out1");
                 const message = { payload: "hello", nested: { value: 42 } };
+                const originalDateNow = Date.now;
 
-                await waitForAsyncWork();
-                outNode.receive(message);
-                await waitForAsyncWork();
+                try {
+                    Date.now = () => 1700000000000;
 
-                assert.deepStrictEqual(getCachedMessage("alpha"), message);
-                assert.notStrictEqual(getCachedMessage("alpha"), message);
+                    await waitForAsyncWork();
+                    outNode.receive(message);
+                    await waitForAsyncWork();
+
+                    const cacheEntry = getCachedEntry("alpha");
+
+                    assert.deepStrictEqual(cacheEntry.message, message);
+                    assert.notStrictEqual(cacheEntry.message, message);
+                    assert.strictEqual(cacheEntry.updatedAtMs, 1700000000000);
+                } finally {
+                    Date.now = originalDateNow;
+                }
+
                 done();
             } catch (testErr) {
                 done(testErr);

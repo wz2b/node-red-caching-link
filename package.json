@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@node-red/editor-api": "^4.1.8",
-    "@node-red/nodes": "^3.1.9",
+    "@node-red/nodes": "^4.1.8",
     "@node-red/registry": "^4.1.8",
     "@node-red/runtime": "^4.1.8",
     "eslint": "^8.0.0",

@@ -15,6 +15,17 @@ function hasStatusCall(node, expectedStatus) {
     return node.status.args.some((call) => isDeepStrictEqual(call[0], expectedStatus));
 }
 
+async function withStubbedNow(nowValue, task) {
+    const originalDateNow = Date.now;
+    Date.now = () => nowValue;
+
+    try {
+        await task();
+    } finally {
+        Date.now = originalDateNow;
+    }
+}
+
 describe("caching-link-get", function () {
     beforeEach(function (done) {
         helper.resetRuntimeState();
@@ -28,10 +39,10 @@ describe("caching-link-get", function () {
             .catch(done);
     });
 
-    it("merges cached message over inbound message and preserves inbound _msgid", function (done) {
+    it("returns merged message with cache metadata and preserves inbound _msgid", function (done) {
         const flow = [
             { id: "out1", type: "caching-link-out", topic: "alpha", wires: [] },
-            { id: "get1", type: "caching-link-get", topic: "alpha", wires: [["helper1"]] },
+            { id: "get1", type: "caching-link-get", topic: "alpha", maxAgeSeconds: 30, outputExpired: false, wires: [["helper1"]] },
             { id: "helper1", type: "helper" }
         ];
 
@@ -66,6 +77,9 @@ describe("caching-link-get", function () {
                     assert.strictEqual(msg.override, "cache");
                     assert.deepStrictEqual(msg.payload, { retained: true });
                     assert.strictEqual(msg.topic, "from-cache");
+                    assert.strictEqual(msg.cacheUpdatedAt, 1700000000000);
+                    assert.strictEqual(msg.cacheAgeMs, 5000);
+                    assert.strictEqual(msg.cacheExpired, false);
                     assert.notStrictEqual(msg, inboundMessage);
                     assert.notStrictEqual(msg, cachedMessage);
                     done();
@@ -75,10 +89,15 @@ describe("caching-link-get", function () {
             });
 
             try {
-                await waitForAsyncWork();
-                outNode.receive(cachedMessage);
-                await waitForAsyncWork();
-                getNode.receive(inboundMessage);
+                await withStubbedNow(1700000000000, async () => {
+                    await waitForAsyncWork();
+                    outNode.receive(cachedMessage);
+                    await waitForAsyncWork();
+                });
+
+                await withStubbedNow(1700000005000, async () => {
+                    getNode.receive(inboundMessage);
+                });
             } catch (testErr) {
                 done(testErr);
             }
@@ -124,9 +143,152 @@ describe("caching-link-get", function () {
         });
     });
 
+    it("suppresses expired output when outputExpired is false", function (done) {
+        const flow = [
+            { id: "out1", type: "caching-link-out", topic: "alpha", wires: [] },
+            { id: "get1", type: "caching-link-get", topic: "alpha", maxAgeSeconds: 5, outputExpired: false, wires: [["helper1"]] },
+            { id: "helper1", type: "helper" }
+        ];
+
+        helper.load([cachingLinkOut, cachingLinkGet], flow, async function (err) {
+            if (err) {
+                done(err);
+                return;
+            }
+
+            const outNode = helper.getNode("out1");
+            const getNode = helper.getNode("get1");
+            const helperNode = helper.getNode("helper1");
+
+            let received = false;
+
+            helperNode.on("input", () => {
+                received = true;
+            });
+
+            try {
+                await withStubbedNow(1700000000000, async () => {
+                    outNode.receive({ payload: "stale value" });
+                    await waitForAsyncWork();
+                });
+
+                await withStubbedNow(1700000007000, async () => {
+                    getNode.receive({ _msgid: "trigger-1", payload: "go" });
+                    await waitForAsyncWork(50);
+                });
+
+                assert.strictEqual(received, false);
+                assert.deepStrictEqual(hasStatusCall(getNode, {
+                    fill: "yellow",
+                    shape: "ring",
+                    text: "expired"
+                }), true);
+                done();
+            } catch (testErr) {
+                done(testErr);
+            }
+        });
+    });
+
+    it("outputs expired value when outputExpired is true and marks cacheExpired", function (done) {
+        const flow = [
+            { id: "out1", type: "caching-link-out", topic: "alpha", wires: [] },
+            { id: "get1", type: "caching-link-get", topic: "alpha", maxAgeSeconds: 5, outputExpired: true, wires: [["helper1"]] },
+            { id: "helper1", type: "helper" }
+        ];
+
+        helper.load([cachingLinkOut, cachingLinkGet], flow, async function (err) {
+            if (err) {
+                done(err);
+                return;
+            }
+
+            const outNode = helper.getNode("out1");
+            const getNode = helper.getNode("get1");
+            const helperNode = helper.getNode("helper1");
+
+            helperNode.on("input", (msg) => {
+                try {
+                    assert.strictEqual(msg.cacheExpired, true);
+                    assert.strictEqual(msg.cacheUpdatedAt, 1700000000000);
+                    assert.strictEqual(msg.cacheAgeMs, 8000);
+                    assert.strictEqual(msg._msgid, "trigger-2");
+                    assert.deepStrictEqual(hasStatusCall(getNode, {
+                        fill: "yellow",
+                        shape: "ring",
+                        text: "expired"
+                    }), true);
+                    done();
+                } catch (assertErr) {
+                    done(assertErr);
+                }
+            });
+
+            try {
+                await withStubbedNow(1700000000000, async () => {
+                    outNode.receive({ payload: "stale value" });
+                    await waitForAsyncWork();
+                });
+
+                await withStubbedNow(1700000008000, async () => {
+                    getNode.receive({ _msgid: "trigger-2", payload: "go" });
+                });
+            } catch (testErr) {
+                done(testErr);
+            }
+        });
+    });
+
+    it("treats maxAgeSeconds 0 as never expire", function (done) {
+        const flow = [
+            { id: "out1", type: "caching-link-out", topic: "alpha", wires: [] },
+            { id: "get1", type: "caching-link-get", topic: "alpha", maxAgeSeconds: 0, outputExpired: false, wires: [["helper1"]] },
+            { id: "helper1", type: "helper" }
+        ];
+
+        helper.load([cachingLinkOut, cachingLinkGet], flow, async function (err) {
+            if (err) {
+                done(err);
+                return;
+            }
+
+            const outNode = helper.getNode("out1");
+            const getNode = helper.getNode("get1");
+            const helperNode = helper.getNode("helper1");
+
+            helperNode.on("input", (msg) => {
+                try {
+                    assert.strictEqual(msg.cacheExpired, false);
+                    assert.strictEqual(msg.cacheAgeMs, 600000);
+                    assert.deepStrictEqual(hasStatusCall(getNode, {
+                        fill: "green",
+                        shape: "dot",
+                        text: "cached"
+                    }), true);
+                    done();
+                } catch (assertErr) {
+                    done(assertErr);
+                }
+            });
+
+            try {
+                await withStubbedNow(1700000000000, async () => {
+                    outNode.receive({ payload: "long-lived" });
+                    await waitForAsyncWork();
+                });
+
+                await withStubbedNow(1700000600000, async () => {
+                    getNode.receive({ _msgid: "trigger-3", payload: "go" });
+                });
+            } catch (testErr) {
+                done(testErr);
+            }
+        });
+    });
+
     it("reports an invalid topic and sends nothing when topic is empty", function (done) {
         const flow = [
-            { id: "get1", type: "caching-link-get", topic: "", wires: [["helper1"]] },
+            { id: "get1", type: "caching-link-get", topic: "", maxAgeSeconds: 60, outputExpired: true, wires: [["helper1"]] },
             { id: "helper1", type: "helper" }
         ];
 

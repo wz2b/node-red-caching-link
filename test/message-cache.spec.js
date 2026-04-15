@@ -4,12 +4,17 @@ const assert = require("assert");
 
 const {
     clearRetainedMessages,
+    getCacheAgeMs,
+    getCachedEntry,
+    hasCachedEntry,
+    isCacheEntryExpired,
     resetRuntimeStateForTests,
     getRegisteredInNodeCount,
     getRegisteredInNodes,
     isTopicConfigured,
     registerInNode,
     registerOutNode,
+    setCachedMessage,
     unregisterInNode,
     unregisterOutNode
 } = require("../src/message-cache");
@@ -80,6 +85,35 @@ describe("message-cache registry", function () {
 
         assert.strictEqual(getRegisteredInNodeCount("alpha"), 1);
         assert.deepStrictEqual(updates.includes(1), true);
+    });
+
+    it("stores retained cache entries with message and updated timestamp", function () {
+        const originalDateNow = Date.now;
+
+        try {
+            Date.now = () => 1700000000000;
+            setCachedMessage("alpha", { payload: "value" });
+        } finally {
+            Date.now = originalDateNow;
+        }
+
+        const cacheEntry = getCachedEntry("alpha");
+
+        assert.strictEqual(hasCachedEntry("alpha"), true);
+        assert.deepStrictEqual(cacheEntry.message, { payload: "value" });
+        assert.strictEqual(cacheEntry.updatedAtMs, 1700000000000);
+    });
+
+    it("computes age and expiration with max age settings", function () {
+        const entry = {
+            message: { payload: "cached" },
+            updatedAtMs: 1000
+        };
+
+        assert.strictEqual(getCacheAgeMs(entry, 3500), 2500);
+        assert.strictEqual(isCacheEntryExpired(entry, 2, 3500), true);
+        assert.strictEqual(isCacheEntryExpired(entry, 3, 3500), false);
+        assert.strictEqual(isCacheEntryExpired(entry, 0, 999999), false);
     });
 });
 

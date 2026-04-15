@@ -7,15 +7,29 @@
         <label for="node-input-topic"><i class="fa fa-bookmark"></i> Topic</label>
         <input type="text" id="node-input-topic" placeholder="Channel topic">
     </div>
+    <div class="form-row">
+        <label for="node-input-maxAgeSeconds"><i class="fa fa-clock-o"></i> Max Age (s)</label>
+        <input type="number" id="node-input-maxAgeSeconds" min="0" step="1" placeholder="0">
+    </div>
+    <div class="form-row">
+        <label for="node-input-outputExpired"><i class="fa fa-filter"></i> Output Expired</label>
+        <input type="checkbox" id="node-input-outputExpired" style="display:inline-block; width:auto; vertical-align:middle;">
+    </div>
 </script>
 
 <script type="text/html" data-help-name="caching-link-get">
     <p>
-        On input, reads the retained message for the same exact topic and merges it onto the inbound
-        message. Cached fields override inbound fields while preserving inbound <code>_msgid</code>.
+        Reads the retained message for the same exact topic and merges it onto the inbound message.
+        Cached fields override inbound fields while preserving inbound <code>_msgid</code>.
     </p>
     <p>
-        Sends nothing when no retained message exists. Topic is required at runtime.
+        Supports optional staleness filtering with <code>maxAgeSeconds</code> and
+        <code>outputExpired</code>. Output messages include <code>msg.cacheAgeMs</code>,
+        <code>msg.cacheUpdatedAt</code>, and <code>msg.cacheExpired</code>.
+    </p>
+    <p>
+        Sends nothing when no retained value exists, and can suppress expired values when configured.
+        Topic is required at runtime.
     </p>
 </script>
 
@@ -30,7 +44,15 @@
                 validate: function (value) {
                     return typeof value === 'string' && value.trim().length > 0;
                 }
-            }
+            },
+            maxAgeSeconds: {
+                value: 0,
+                validate: function (value) {
+                    var numericValue = Number(value);
+                    return Number.isFinite(numericValue) && numericValue >= 0;
+                }
+            },
+            outputExpired: { value: false }
         },
         inputs: 1,
         outputs: 1,

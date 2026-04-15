@@ -21,6 +21,52 @@ function invalidTopicStatus() {
     return { fill: "red", shape: "ring", text: "invalid topic" };
 }
 
+function getStatusForGetNode(topic, state) {
+    if (!isTopicConfigured(topic)) {
+        return invalidTopicStatus();
+    }
+
+    if (state === "expired") {
+        return { fill: "yellow", shape: "ring", text: "expired" };
+    }
+
+    if (state === "cached") {
+        return { fill: "green", shape: "dot", text: "cached" };
+    }
+
+    return { fill: "grey", shape: "ring", text: "no cache" };
+}
+
+function createCacheEntry(message, updatedAtMs) {
+    return {
+        message,
+        updatedAtMs
+    };
+}
+
+function getMaxAgeMs(maxAgeSeconds) {
+    return Math.max(0, Number(maxAgeSeconds) || 0) * 1000;
+}
+
+function getCacheAgeMs(entry, nowMs) {
+    if (!entry || typeof entry.updatedAtMs !== "number") {
+        return Number.POSITIVE_INFINITY;
+    }
+
+    const resolvedNowMs = typeof nowMs === "number" ? nowMs : Date.now();
+    return Math.max(0, resolvedNowMs - entry.updatedAtMs);
+}
+
+function isCacheEntryExpired(entry, maxAgeSeconds, nowMs) {
+    const maxAgeMs = getMaxAgeMs(maxAgeSeconds);
+
+    if (maxAgeMs === 0) {
+        return false;
+    }
+
+    return getCacheAgeMs(entry, nowMs) > maxAgeMs;
+}
+
 function hasCachedMessage(topic) {
     if (!isTopicConfigured(topic)) {
         return false;
@@ -29,7 +75,11 @@ function hasCachedMessage(topic) {
     return Object.prototype.hasOwnProperty.call(messageCache, normalizeTopic(topic));
 }
 
-function getCachedMessage(topic) {
+function hasCachedEntry(topic) {
+    return hasCachedMessage(topic);
+}
+
+function getCachedEntry(topic) {
     if (!isTopicConfigured(topic)) {
         return undefined;
     }
@@ -37,14 +87,14 @@ function getCachedMessage(topic) {
     return messageCache[normalizeTopic(topic)];
 }
 
-function statusForTopic(topic) {
-    if (!isTopicConfigured(topic)) {
-        return invalidTopicStatus();
-    }
+function getCachedMessage(topic) {
+    const entry = getCachedEntry(topic);
 
-    return hasCachedMessage(topic)
-        ? { fill: "green", shape: "dot", text: "cached" }
-        : { fill: "grey", shape: "ring", text: "no cache" };
+    return entry ? entry.message : undefined;
+}
+
+function statusForTopic(topic) {
+    return getStatusForGetNode(topic, hasCachedEntry(topic) ? "cached" : "no-cache");
 }
 
 function receiverStatusForTopic(topic, receiverCount) {
@@ -178,11 +228,12 @@ function updateRegisteredGetNodes(topic) {
 
 function setCachedMessage(topic, msg) {
     const normalizedTopic = assertValidTopic(topic, "caching-link-out");
+    const cacheEntry = createCacheEntry(msg, Date.now());
 
-    messageCache[normalizedTopic] = msg;
+    messageCache[normalizedTopic] = cacheEntry;
     updateRegisteredGetNodes(normalizedTopic);
 
-    return messageCache[normalizedTopic];
+    return cacheEntry;
 }
 
 function registerGetNode(topic, node) {
@@ -270,13 +321,20 @@ function resetRuntimeStateForTests() {
 module.exports = {
     assertValidTopic,
     clearRetainedMessages,
+    createCacheEntry,
     displayTopic,
+    getCacheAgeMs,
+    getCachedEntry,
     getCachedMessage,
+    getMaxAgeMs,
     getRegisteredInNodeCount,
     getRegisteredInNodes,
+    getStatusForGetNode,
     hasCachedMessage,
+    hasCachedEntry,
     inNodeStatusForTopic,
     invalidTopicStatus,
+    isCacheEntryExpired,
     isTopicConfigured,
     messageCache,
     normalizeTopic,

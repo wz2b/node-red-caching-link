@@ -11,7 +11,7 @@ Node-RED context (`flow.get()` / `flow.set()`) is useful, but context reads and 
 ### `caching-link-out`
 
 - Exact-topic publisher
-- Stores the latest message for its topic in an in-memory retained cache
+- Stores the latest message for its topic in an in-memory retained cache with a last-updated timestamp
 - Forwards the message to all matching `caching-link-in` nodes
 - Shows live receiver count status:
   - invalid topic -> `invalid topic`
@@ -29,11 +29,18 @@ Node-RED context (`flow.get()` / `flow.set()`) is useful, but context reads and 
 
 - Exact-topic retained reader
 - On input, reads retained message for the topic
+- Supports staleness options:
+  - `maxAgeSeconds` (`0` means no expiration limit)
+  - `outputExpired` (`false` suppresses expired outputs)
 - If retained message exists:
   - clones inbound message
   - clones retained message
   - merges into one output where retained fields override inbound fields
   - preserves inbound `_msgid`
+  - adds cache metadata fields:
+    - `msg.cacheAgeMs`
+    - `msg.cacheUpdatedAt`
+    - `msg.cacheExpired`
 - If no retained message exists: sends nothing
 
 ## Semantics and caveats
@@ -43,7 +50,10 @@ Node-RED context (`flow.get()` / `flow.set()`) is useful, but context reads and 
 - Retained messages are in-memory only
 - Cache/registry are shared only within one Node-RED runtime process
 - Retained cache is lost on runtime restart/redeploy
+- Cached entries include both the retained message and `updatedAtMs` timestamp
 - `caching-link-get` merge rule: retained fields override inbound fields, inbound `_msgid` is preserved
+- When `maxAgeSeconds > 0`, cached entries are treated as expired once age exceeds that limit
+- When expired and `outputExpired=false`, `caching-link-get` sends nothing
 
 ## Example usage
 
@@ -53,7 +63,7 @@ One flow computes current machine status and sends it to `caching-link-out(topic
 
 ### 2) Retained state lookup across flows
 
-Flow A writes latest configuration/state to `caching-link-out(topic="plant/target")`. Later, Flow B triggers `caching-link-get(topic="plant/target")` before a control action. The get node merges the retained state onto the current trigger message, so downstream nodes see both trigger context and latest retained values.
+Flow A writes latest configuration/state to `caching-link-out(topic="plant/target")`. Later, Flow B triggers `caching-link-get(topic="plant/target", maxAgeSeconds=30, outputExpired=false)` before a control action. The get node merges retained state onto the current trigger message only when fresh enough, and adds `cacheAgeMs`, `cacheUpdatedAt`, and `cacheExpired` for downstream decisions.
 
 ## Install
 
