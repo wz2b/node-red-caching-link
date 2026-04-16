@@ -21,8 +21,8 @@
 
 <script type="text/javascript">
     RED.nodes.registerType('caching-link-out', {
-        category: 'function',
-        color: '#a6d6a6',
+        category: 'common',
+        color: '#d0d0d0',
         defaults: {
             name: { value: '' },
             topic: {
@@ -36,7 +36,8 @@
         outputs: 0,
         label: function () {
             return this.name || this.topic || 'caching-link-out';
-        }
+        },
+        icon: "link-out.svg"
     });
 </script>
 
