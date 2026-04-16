@@ -1,6 +1,6 @@
 {
   "name": "@wz2b/node-red-caching-link",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Visible exact-topic retained links for Node-RED",
   "keywords": [
     "node-red",
